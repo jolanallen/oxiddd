@@ -1,58 +1,53 @@
-# 🛡️ oxiddd
+# oxiddd
 
-**oxiddd** is a high-performance, digital forensics disk imaging tool written in Rust. It is a modern, faster, and more secure alternative to the classic `dc3dd`.
+**oxiddd** est un outil d'acquisition de données disque haute performance conçu pour l'investigation numérique (forensics). Développé en Rust, il se présente comme une alternative moderne, sécurisée et optimisée à l'outil classique `dc3dd`.
 
-## ✨ Key Features
+## Caractéristiques principales
 
-*   **🚀 Blazing Fast**: Multi-threaded pipeline architecture with zero-copy buffer pooling.
-*   **🔌 Direct I/O**: Uses `O_DIRECT` to bypass the OS kernel cache, ensuring stable throughput and direct hardware interaction.
-*   **🔒 Forensic Integrity Binding**: Unique hashing method that links disk content, target filename, and precise time into a single cryptographic signature.
-*   **🌐 Inalterable NTP Timestamping**: Fetches secure time from Google NTP servers to prevent local system clock tampering.
-*   **📊 Dual-Hashing**: Automatically generates both a standard bit-for-bit hash (for Autopsy/EnCase) and a custom forensic binding hash.
-*   **📦 Zero Dependencies**: Compiles to a 100% static binary for portable use on incident response live-USB.
+*   **Performance optimisée** : Architecture de pipeline multi-threadée avec gestion de pool de tampons alignés (zero-copy).
+*   **Accès Direct aux E/S** : Utilisation du flag `O_DIRECT` sous Linux pour contourner le cache du noyau, garantissant un débit stable et une interaction directe avec le matériel.
+*   **Intégrité Forensic Liée (Binding)** : Méthode de hachage exclusive liant le contenu binaire, le nom du fichier de destination et l'horodatage précis dans une signature unique.
+*   **Horodatage NTP Certifié** : Récupération de l'heure exacte via les serveurs NTP de Google pour prévenir toute altération de l'horloge système locale.
+*   **Double Hachage Simultané** : Génération automatique d'un hash standard (copie bit-à-bit pour compatibilité Autopsy/EnCase) et d'un hash forensic bindé.
+*   **Autonome et Statique** : Compilation en binaire statique sans dépendances dynamiques pour une utilisation sur des systèmes compromis.
 
-## 🛠️ Installation
+## Installation
 
-### Pre-requisites
-*   Rust (latest stable)
-*   `musl-tools` (for static Linux builds)
+### Prérequis
+*   Rust (dernière version stable)
+*   `musl-tools` (pour les builds statiques Linux)
 
-### Build from source
+### Compilation
 ```bash
-git clone https://github.com/your-username/oxiddd.git
-cd oxiddd
 cargo build --release
 ```
 
-### Static build (Incident Response ready)
+### Build Statique (Usage Incident Response)
 ```bash
 ./build_static.sh
 ```
 
-## 🚀 Usage
+## Utilisation
 
-`oxiddd` supports both standard CLI flags (with auto-completion) and classic `dd` syntax.
+L'outil supporte la syntaxe standard des drapeaux CLI (recommandée pour l'autocomplétion) ainsi que la syntaxe historique `dd`.
 
-### Standard Syntax (Recommended for Tab-completion)
+### Syntaxe Standard
 ```bash
-sudo ./oxiddd --if /dev/sdb --of evidence.dd --hash sha512
+sudo ./oxiddd --if /dev/sdb --of acquisition.dd --hash sha256
 ```
 
-### Classic DD Syntax
+### Syntaxe DD
 ```bash
-sudo ./oxiddd if=/dev/sdb of=evidence.dd hash=sha256 bs=8M
+sudo ./oxiddd if=/dev/sdb of=acquisition.dd hash=sha512 bs=8M
 ```
 
-## 🛡️ Forensic Integrity Algorithm
+## Algorithme d'Intégrité
 
-Unlike standard tools, `oxiddd` generates a signature using:
-`SHA256( Disk_Content + Target_Filename + NTP_Timestamp )`
+À la différence des outils standards, `oxiddd` calcule une signature globale :
+`SHA256( Contenu_Disque + Nom_Fichier_Cible + Timestamp_NTP )`
 
-This ensures that if an image is renamed or the metadata is modified, the forensic hash will no longer match, preserving the chain of custody.
+Cette approche garantit que si l'image est renommée ou si les métadonnées de temps sont modifiées, le hash forensic ne correspondra plus, assurant ainsi une chaîne de possession inviolable.
 
-## 📄 License
+## Licence
 
-This project is licensed under the **GPL-3.0 License** - see the [LICENSE](LICENSE) file for details (consistent with the original `dc3dd` spirit).
-
----
-*Developed with ❤️ in Rust for the Forensics Community.*
+Ce projet est distribué sous licence **GPL-3.0**. Voir le fichier `LICENSE` pour plus de détails.
