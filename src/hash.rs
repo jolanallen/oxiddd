@@ -6,7 +6,7 @@ pub enum HashAlgo {
 }
 
 pub enum HasherInstance {
-    Sha256(Sha256, Sha256),           // (Standard, Custom)
+    Sha256(Box<Sha256>, Box<Sha256>), // (Standard, Custom) - Boxed to reduce enum size
     Sha512(Box<Sha512>, Box<Sha512>), // (Standard, Custom) - Boxed to reduce enum size
 }
 
@@ -20,7 +20,9 @@ pub struct ForensicHasher {
 impl ForensicHasher {
     pub fn new(algo: HashAlgo, target_filename: String, ntp_timestamp: String) -> Self {
         let instance = match algo {
-            HashAlgo::Sha256 => HasherInstance::Sha256(Sha256::new(), Sha256::new()),
+            HashAlgo::Sha256 => {
+                HasherInstance::Sha256(Box::new(Sha256::new()), Box::new(Sha256::new()))
+            }
             HashAlgo::Sha512 => {
                 HasherInstance::Sha512(Box::new(Sha512::new()), Box::new(Sha512::new()))
             }
