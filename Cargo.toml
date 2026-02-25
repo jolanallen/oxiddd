@@ -1,0 +1,21 @@
+[package]
+name = "oxiddd"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+aligned-vec = "0.6.4"
+chrono = "0.4.44"
+clap = { version = "4.5.60", features = ["derive"] }
+crossbeam-channel = "0.5.15"
+hex = "0.4.3"
+indicatif = "0.18.4"
+nix = { version = "0.31.1", features = ["fs"] }
+sha2 = "0.10.9"
+
+[profile.release]
+lto = true
+opt-level = 3
+codegen-units = 1
+panic = "abort"
+strip = true

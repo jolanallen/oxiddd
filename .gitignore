@@ -1,0 +1,10 @@
+/target
+Cargo.lock
+**/*.rs.bk
+*.dd
+*.sha256
+*.sha512
+dummy.bin
+fast_copy.dd
+dual_hash.dd
+evidence.dd
