@@ -16,6 +16,9 @@ struct Chunk {
     len: usize,
 }
 
+#[cfg(target_os = "macos")]
+use std::os::unix::io::AsRawFd;
+
 pub fn copy_and_hash<P1: AsRef<Path>, P2: AsRef<Path>>(
     input_path: P1,
     output_path: P2,
@@ -23,21 +26,36 @@ pub fn copy_and_hash<P1: AsRef<Path>, P2: AsRef<Path>>(
     block_size: usize,
 ) -> IoResult<(String, String)> {
     
+    #[cfg(any(target_os = "linux", target_os = "android"))]
     let o_direct = nix::libc::O_DIRECT;
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    let o_direct = 0;
 
-    let mut input = OpenOptions::new()
+    let input = OpenOptions::new()
         .read(true)
         .custom_flags(o_direct)
         .open(&input_path)
         .or_else(|_| OpenOptions::new().read(true).open(&input_path))?;
 
-    let mut output = OpenOptions::new()
+    let output = OpenOptions::new()
         .write(true)
         .create(true)
         .truncate(true)
         .custom_flags(o_direct)
         .open(&output_path)
         .or_else(|_| OpenOptions::new().write(true).create(true).truncate(true).open(&output_path))?;
+
+    #[cfg(target_os = "macos")]
+    {
+        // On macOS, we use F_NOCACHE to achieve a similar effect to O_DIRECT
+        unsafe {
+            nix::libc::fcntl(input.as_raw_fd(), nix::libc::F_NOCACHE, 1);
+            nix::libc::fcntl(output.as_raw_fd(), nix::libc::F_NOCACHE, 1);
+        }
+    }
+
+    let mut input = input;
+    let mut output = output;
 
     let total_size = input.metadata().map(|m| m.len()).unwrap_or(0);
 

@@ -1,5 +1,8 @@
 # oxiddd
 
+[![CI](https://github.com/your-username/oxiddd/actions/workflows/ci.yml/badge.svg)](https://github.com/your-username/oxiddd/actions/workflows/ci.yml)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
 **oxiddd** est un outil d'acquisition de données disque haute performance conçu pour l'investigation numérique (forensics). Développé en Rust, il se présente comme une alternative moderne, sécurisée et optimisée à l'outil classique `dc3dd`.
 
 ## Caractéristiques principales
