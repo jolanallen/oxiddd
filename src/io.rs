@@ -1,13 +1,13 @@
+use crate::hash::ForensicHasher;
+use aligned_vec::{AVec, ConstAlign};
+use crossbeam_channel::{Receiver, Sender, bounded};
+use indicatif::{ProgressBar, ProgressStyle};
 use std::fs::OpenOptions;
-use std::io::{Read, Write, Result as IoResult, Seek, SeekFrom};
+use std::io::{Read, Result as IoResult, Seek, SeekFrom, Write};
+use std::os::unix::fs::OpenOptionsExt;
 use std::path::Path;
 use std::sync::Arc;
 use std::thread;
-use std::os::unix::fs::OpenOptionsExt;
-use crossbeam_channel::{bounded, Receiver, Sender};
-use indicatif::{ProgressBar, ProgressStyle};
-use aligned_vec::{AVec, ConstAlign};
-use crate::hash::ForensicHasher;
 
 type AlignedBuffer = AVec<u8, ConstAlign<4096>>;
 
@@ -16,35 +16,60 @@ struct Chunk {
     len: usize,
 }
 
+#[cfg(target_os = "macos")]
+use std::os::unix::io::AsRawFd;
+
 pub fn copy_and_hash<P1: AsRef<Path>, P2: AsRef<Path>>(
     input_path: P1,
     output_path: P2,
     hasher: ForensicHasher,
     block_size: usize,
 ) -> IoResult<(String, String)> {
-    
+    #[cfg(any(target_os = "linux", target_os = "android"))]
     let o_direct = nix::libc::O_DIRECT;
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    let o_direct = 0;
 
-    let mut input = OpenOptions::new()
+    let input = OpenOptions::new()
         .read(true)
         .custom_flags(o_direct)
         .open(&input_path)
         .or_else(|_| OpenOptions::new().read(true).open(&input_path))?;
 
-    let mut output = OpenOptions::new()
+    let output = OpenOptions::new()
         .write(true)
         .create(true)
         .truncate(true)
         .custom_flags(o_direct)
         .open(&output_path)
-        .or_else(|_| OpenOptions::new().write(true).create(true).truncate(true).open(&output_path))?;
+        .or_else(|_| {
+            OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(&output_path)
+        })?;
+
+    #[cfg(target_os = "macos")]
+    {
+        // On macOS, we use F_NOCACHE to achieve a similar effect to O_DIRECT
+        unsafe {
+            nix::libc::fcntl(input.as_raw_fd(), nix::libc::F_NOCACHE, 1);
+            nix::libc::fcntl(output.as_raw_fd(), nix::libc::F_NOCACHE, 1);
+        }
+    }
+
+    let mut input = input;
+    let mut output = output;
 
     let total_size = input.metadata().map(|m| m.len()).unwrap_or(0);
 
     // Pre-allocate buffer pool (16 buffers)
     let (free_tx, free_rx) = bounded::<AlignedBuffer>(16);
     for _ in 0..16 {
-        free_tx.send(AVec::from_iter(4096, vec![0u8; block_size])).unwrap();
+        free_tx
+            .send(AVec::from_iter(4096, vec![0u8; block_size]))
+            .unwrap();
     }
 
     let (write_tx, write_rx): (Sender<Option<Chunk>>, Receiver<Option<Chunk>>) = bounded(8);
@@ -89,10 +114,16 @@ pub fn copy_and_hash<P1: AsRef<Path>, P2: AsRef<Path>>(
             Ok(0) => break,
             Ok(n) => n,
             Err(e) => {
-                eprintln!("\n⚠️ WARNING: Read error at offset {}: {}", input.stream_position().unwrap_or(0), e);
+                eprintln!(
+                    "\n⚠️ WARNING: Read error at offset {}: {}",
+                    input.stream_position().unwrap_or(0),
+                    e
+                );
                 eprintln!("Filling block with zeros to preserve forensic alignment...");
                 // In forensic mode, we pad the block with zeros to keep the rest of the image aligned
-                for byte in buffer.iter_mut() { *byte = 0; }
+                for byte in buffer.iter_mut() {
+                    *byte = 0;
+                }
                 // Try to skip the bad block
                 let _ = input.seek(SeekFrom::Current(block_size as i64));
                 block_size
@@ -105,9 +136,14 @@ pub fn copy_and_hash<P1: AsRef<Path>, P2: AsRef<Path>>(
             len: bytes_read,
         };
 
-        write_tx.send(Some(Chunk { data: Arc::clone(&chunk_data), len: bytes_read })).unwrap();
+        write_tx
+            .send(Some(Chunk {
+                data: Arc::clone(&chunk_data),
+                len: bytes_read,
+            }))
+            .unwrap();
         hash_tx.send(Some(chunk)).unwrap();
-        
+
         // Return buffer to pool efficiently
         let free_tx_clone = free_tx.clone();
         thread::spawn(move || {

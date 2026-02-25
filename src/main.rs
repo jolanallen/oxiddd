@@ -63,10 +63,15 @@ fn main() {
         std::process::exit(1);
     }
 
-    let multiplier = if bs_str.ends_with('K') { 1024 }
-                     else if bs_str.ends_with('M') { 1024 * 1024 }
-                     else if bs_str.ends_with('G') { 1024 * 1024 * 1024 }
-                     else { 1 };
+    let multiplier = if bs_str.ends_with('K') {
+        1024
+    } else if bs_str.ends_with('M') {
+        1024 * 1024
+    } else if bs_str.ends_with('G') {
+        1024 * 1024 * 1024
+    } else {
+        1
+    };
     let num_part = bs_str.trim_end_matches(|c: char| !c.is_numeric());
     let bs = num_part.parse::<usize>().unwrap_or(4194304) * multiplier;
 
@@ -94,11 +99,22 @@ fn main() {
     let timestamp_str = dt.format("%Y-%m-%dT%H%M%SZ").to_string();
 
     let base_output = Path::new(&output);
-    let original_ext = base_output.extension().unwrap_or_default().to_string_lossy();
-    let out_ext = if original_ext.is_empty() { "dd".to_string() } else { original_ext.into_owned() };
+    let original_ext = base_output
+        .extension()
+        .unwrap_or_default()
+        .to_string_lossy();
+    let out_ext = if original_ext.is_empty() {
+        "dd".to_string()
+    } else {
+        original_ext.into_owned()
+    };
 
     let out_file_path = append_timestamp_to_path(&output, &timestamp_str, &out_ext);
-    let out_filename_only = out_file_path.file_name().unwrap().to_string_lossy().into_owned();
+    let out_filename_only = out_file_path
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
 
     let hasher = hash::ForensicHasher::new(algo, out_filename_only.clone(), timestamp_str.clone());
     let hash_ext = hasher.extension().to_string();
@@ -121,7 +137,8 @@ fn main() {
     println!("Standard Hash (Content Only): {}", std_hash);
     println!("Custom Forensic Hash:        {}", custom_hash);
 
-    let hash_content = format!("--- STANDARD HASH (Bit-for-bit content) ---
+    let hash_content = format!(
+        "--- STANDARD HASH (Bit-for-bit content) ---
 {}: {}
 
 --- CUSTOM FORENSIC HASH (Binding) ---
@@ -131,16 +148,20 @@ Hash:   {}
 --- METADATA ---
 Target FileName: {}
 NTP Timestamp:   {}
-", 
-                               hash_str.to_uppercase(), std_hash,
-                               hash_str.to_uppercase(), custom_hash,
-                               out_filename_only, timestamp_str);
-                               
+",
+        hash_str.to_uppercase(),
+        std_hash,
+        hash_str.to_uppercase(),
+        custom_hash,
+        out_filename_only,
+        timestamp_str
+    );
+
     if let Err(e) = fs::write(&hash_file_path, hash_content) {
         eprintln!("Failed to write hash file: {}", e);
         std::process::exit(1);
     }
-    
+
     println!("Forensic copy completed successfully.");
 }
 
@@ -153,7 +174,11 @@ fn append_timestamp_to_path(base_path: &str, timestamp: &str, ext: &str) -> Path
     new_name.push_str(timestamp);
     new_name.push('.');
     new_name.push_str(ext);
-    if parent.as_os_str().is_empty() { PathBuf::from(new_name) } else { parent.join(new_name) }
+    if parent.as_os_str().is_empty() {
+        PathBuf::from(new_name)
+    } else {
+        parent.join(new_name)
+    }
 }
 
 #[cfg(test)]
@@ -165,9 +190,12 @@ mod tests {
         let ts = "2026-02-25";
         let result = append_timestamp_to_path("evidence.dd", ts, "dd");
         assert_eq!(result.to_str().unwrap(), "evidence_2026-02-25.dd");
-        
+
         let result_hash = append_timestamp_to_path("/tmp/case1", ts, "sha256");
-        assert_eq!(result_hash.to_str().unwrap(), "/tmp/case1_2026-02-25.sha256");
+        assert_eq!(
+            result_hash.to_str().unwrap(),
+            "/tmp/case1_2026-02-25.sha256"
+        );
     }
 
     #[test]
@@ -175,7 +203,7 @@ mod tests {
         let (k, v) = parse_key_val("if=/dev/sda").unwrap();
         assert_eq!(k, "if");
         assert_eq!(v, "/dev/sda");
-        
+
         assert!(parse_key_val("invalid_arg").is_err());
     }
 }
