@@ -5,10 +5,14 @@ use indicatif::{ProgressBar, ProgressStyle};
 use sha2::Digest;
 use std::fs::OpenOptions;
 use std::io::{Read, Result as IoResult, Seek, SeekFrom, Write};
-use std::os::unix::fs::OpenOptionsExt;
 use std::path::Path;
 use std::sync::Arc;
 use std::thread;
+
+#[cfg(unix)]
+use std::os::unix::fs::OpenOptionsExt;
+#[cfg(windows)]
+use std::os::windows::fs::OpenOptionsExt;
 
 type AlignedBuffer = AVec<u8, ConstAlign<4096>>;
 
@@ -26,32 +30,37 @@ pub fn copy_and_hash<P1: AsRef<Path>, P2: AsRef<Path>>(
     hashers: Vec<ForensicHasher>,
     block_size: usize,
 ) -> IoResult<(String, Vec<String>)> {
+    // --- Configuration des Flags Direct I/O ---
     #[cfg(any(target_os = "linux", target_os = "android"))]
-    let o_direct = nix::libc::O_DIRECT;
-    #[cfg(not(any(target_os = "linux", target_os = "android")))]
-    let o_direct = 0;
+    let flags = nix::libc::O_DIRECT;
+    #[cfg(windows)]
+    let flags = 0x20000000 | 0x80000000; // FILE_FLAG_NO_BUFFERING + FILE_FLAG_WRITE_THROUGH
+    #[cfg(not(any(target_os = "linux", target_os = "android", windows)))]
+    let flags = 0;
 
-    let input = OpenOptions::new()
-        .read(true)
-        .custom_flags(o_direct)
+    let mut input_opts = OpenOptions::new();
+    input_opts.read(true);
+    #[cfg(any(unix, windows))]
+    input_opts.custom_flags(flags);
+
+    let input = input_opts
         .open(&input_path)
         .or_else(|_| OpenOptions::new().read(true).open(&input_path))?;
 
     let mut outputs = Vec::new();
     for path in &output_paths {
-        let out = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .custom_flags(o_direct)
-            .open(path)
-            .or_else(|_| {
-                OpenOptions::new()
-                    .write(true)
-                    .create(true)
-                    .truncate(true)
-                    .open(path)
-            })?;
+        let mut out_opts = OpenOptions::new();
+        out_opts.write(true).create(true).truncate(true);
+        #[cfg(any(unix, windows))]
+        out_opts.custom_flags(flags);
+
+        let out = out_opts.open(path).or_else(|_| {
+            OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(path)
+        })?;
 
         #[cfg(target_os = "macos")]
         unsafe {
@@ -202,13 +211,18 @@ pub fn copy_and_hash<P1: AsRef<Path>, P2: AsRef<Path>>(
 
 pub fn verify_file<P: AsRef<Path>>(path: P, algo: HashAlgo, block_size: usize) -> IoResult<String> {
     #[cfg(any(target_os = "linux", target_os = "android"))]
-    let o_direct = nix::libc::O_DIRECT;
-    #[cfg(not(any(target_os = "linux", target_os = "android")))]
-    let o_direct = 0;
+    let flags = nix::libc::O_DIRECT;
+    #[cfg(windows)]
+    let flags = 0x20000000; // FILE_FLAG_NO_BUFFERING
+    #[cfg(not(any(target_os = "linux", target_os = "android", windows)))]
+    let flags = 0;
 
-    let input = OpenOptions::new()
-        .read(true)
-        .custom_flags(o_direct)
+    let mut opts = OpenOptions::new();
+    opts.read(true);
+    #[cfg(any(unix, windows))]
+    opts.custom_flags(flags);
+
+    let input = opts
         .open(&path)
         .or_else(|_| OpenOptions::new().read(true).open(&path))?;
 
