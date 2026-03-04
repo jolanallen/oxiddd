@@ -1,4 +1,4 @@
-use crate::hash::ForensicHasher;
+use crate::hash::{ForensicHasher, HashAlgo};
 use aligned_vec::{AVec, ConstAlign};
 use crossbeam_channel::{Receiver, Sender, bounded};
 use indicatif::{ProgressBar, ProgressStyle};
@@ -22,10 +22,10 @@ use std::os::unix::io::AsRawFd;
 
 pub fn copy_and_hash<P1: AsRef<Path>, P2: AsRef<Path>>(
     input_path: P1,
-    output_path: P2,
-    hasher: ForensicHasher,
+    output_paths: Vec<P2>,
+    hashers: Vec<ForensicHasher>,
     block_size: usize,
-) -> IoResult<(String, String)> {
+) -> IoResult<(String, Vec<String>)> {
     #[cfg(any(target_os = "linux", target_os = "android"))]
     let o_direct = nix::libc::O_DIRECT;
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
@@ -37,32 +37,36 @@ pub fn copy_and_hash<P1: AsRef<Path>, P2: AsRef<Path>>(
         .open(&input_path)
         .or_else(|_| OpenOptions::new().read(true).open(&input_path))?;
 
-    let output = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .custom_flags(o_direct)
-        .open(&output_path)
-        .or_else(|_| {
-            OpenOptions::new()
-                .write(true)
-                .create(true)
-                .truncate(true)
-                .open(&output_path)
-        })?;
+    let mut outputs = Vec::new();
+    for path in &output_paths {
+        let out = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .custom_flags(o_direct)
+            .open(path)
+            .or_else(|_| {
+                OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .truncate(true)
+                    .open(path)
+            })?;
+
+        #[cfg(target_os = "macos")]
+        unsafe {
+            nix::libc::fcntl(out.as_raw_fd(), nix::libc::F_NOCACHE, 1);
+        }
+
+        outputs.push(out);
+    }
 
     #[cfg(target_os = "macos")]
-    {
-        // On macOS, we use F_NOCACHE to achieve a similar effect to O_DIRECT
-        unsafe {
-            nix::libc::fcntl(input.as_raw_fd(), nix::libc::F_NOCACHE, 1);
-            nix::libc::fcntl(output.as_raw_fd(), nix::libc::F_NOCACHE, 1);
-        }
+    unsafe {
+        nix::libc::fcntl(input.as_raw_fd(), nix::libc::F_NOCACHE, 1);
     }
 
     let mut input = input;
-    let mut output = output;
-
     let total_size = input.metadata().map(|m| m.len()).unwrap_or(0);
 
     // Pre-allocate buffer pool (16 buffers)
@@ -73,7 +77,23 @@ pub fn copy_and_hash<P1: AsRef<Path>, P2: AsRef<Path>>(
             .unwrap();
     }
 
-    let (write_tx, write_rx): (Sender<Option<Chunk>>, Receiver<Option<Chunk>>) = bounded(8);
+    // Un canal par sortie (writer) et un canal pour le hasher
+    let mut write_txs = Vec::new();
+    let mut writer_handles = Vec::new();
+
+    for mut output in outputs {
+        let (tx, rx): (Sender<Option<Chunk>>, Receiver<Option<Chunk>>) = bounded(8);
+        write_txs.push(tx);
+        let handle = thread::spawn(move || -> IoResult<()> {
+            while let Ok(Some(chunk)) = rx.recv() {
+                output.write_all(&chunk.data[..chunk.len])?;
+            }
+            output.sync_all()?;
+            Ok(())
+        });
+        writer_handles.push(handle);
+    }
+
     let (hash_tx, hash_rx): (Sender<Option<Chunk>>, Receiver<Option<Chunk>>) = bounded(8);
 
     let pb = if total_size > 0 {
@@ -86,22 +106,26 @@ pub fn copy_and_hash<P1: AsRef<Path>, P2: AsRef<Path>>(
         .unwrap()
         .progress_chars("#>-"));
 
-    // --- WRITER THREAD ---
-    let writer_handle = thread::spawn(move || -> IoResult<()> {
-        while let Ok(Some(chunk)) = write_rx.recv() {
-            output.write_all(&chunk.data[..chunk.len])?;
-        }
-        output.sync_all()?;
-        Ok(())
-    });
-
     // --- HASHER THREAD ---
-    let hasher_handle = thread::spawn(move || -> (String, String) {
-        let mut h = hasher;
+    let hasher_handle = thread::spawn(move || -> (String, Vec<String>) {
+        let mut h_list = hashers;
         while let Ok(Some(chunk)) = hash_rx.recv() {
-            h.update(&chunk.data[..chunk.len]);
+            for h in &mut h_list {
+                h.update(&chunk.data[..chunk.len]);
+            }
         }
-        h.finalize()
+
+        let mut std_hash = String::new();
+        let mut forensic_hashes = Vec::new();
+
+        for (i, h) in h_list.into_iter().enumerate() {
+            let (std, forensic) = h.finalize();
+            if i == 0 {
+                std_hash = std;
+            }
+            forensic_hashes.push(forensic);
+        }
+        (std_hash, forensic_hashes)
     });
 
     // --- MAIN READER LOOP ---
@@ -121,29 +145,30 @@ pub fn copy_and_hash<P1: AsRef<Path>, P2: AsRef<Path>>(
                     e
                 );
                 eprintln!("Filling block with zeros to preserve forensic alignment...");
-                // In forensic mode, we pad the block with zeros to keep the rest of the image aligned
                 for byte in buffer.iter_mut() {
                     *byte = 0;
                 }
-                // Try to skip the bad block
                 let _ = input.seek(SeekFrom::Current(block_size as i64));
                 block_size
             }
         };
 
         let chunk_data = Arc::new(buffer);
-        let chunk = Chunk {
-            data: Arc::clone(&chunk_data),
-            len: bytes_read,
-        };
 
-        write_tx
+        for tx in &write_txs {
+            tx.send(Some(Chunk {
+                data: Arc::clone(&chunk_data),
+                len: bytes_read,
+            }))
+            .unwrap();
+        }
+
+        hash_tx
             .send(Some(Chunk {
                 data: Arc::clone(&chunk_data),
                 len: bytes_read,
             }))
             .unwrap();
-        hash_tx.send(Some(chunk)).unwrap();
 
         // Return buffer to pool efficiently
         let free_tx_clone = free_tx.clone();
@@ -159,21 +184,23 @@ pub fn copy_and_hash<P1: AsRef<Path>, P2: AsRef<Path>>(
         pb.inc(bytes_read as u64);
     }
 
-    let _ = write_tx.send(None);
+    for tx in write_txs {
+        let _ = tx.send(None);
+    }
     let _ = hash_tx.send(None);
 
     pb.finish_with_message("Copy completed");
-    writer_handle.join().expect("Writer thread panicked")?;
+
+    for handle in writer_handles {
+        handle.join().expect("Writer thread panicked")?;
+    }
+
     let hashes = hasher_handle.join().expect("Hasher thread panicked");
 
     Ok(hashes)
 }
 
-pub fn verify_file<P: AsRef<Path>>(
-    path: P,
-    algo: crate::hash::HashAlgo,
-    block_size: usize,
-) -> IoResult<String> {
+pub fn verify_file<P: AsRef<Path>>(path: P, algo: HashAlgo, block_size: usize) -> IoResult<String> {
     #[cfg(any(target_os = "linux", target_os = "android"))]
     let o_direct = nix::libc::O_DIRECT;
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
@@ -206,7 +233,7 @@ pub fn verify_file<P: AsRef<Path>>(
     let mut buffer = AlignedBuffer::from_iter(4096, vec![0u8; block_size]);
 
     let final_hash = match algo {
-        crate::hash::HashAlgo::Sha256 => {
+        HashAlgo::Sha256 => {
             let mut hasher = sha2::Sha256::new();
             loop {
                 match input.read(&mut buffer) {
@@ -220,7 +247,7 @@ pub fn verify_file<P: AsRef<Path>>(
             }
             hex::encode(hasher.finalize())
         }
-        crate::hash::HashAlgo::Sha512 => {
+        HashAlgo::Sha512 => {
             let mut hasher = sha2::Sha512::new();
             loop {
                 match input.read(&mut buffer) {

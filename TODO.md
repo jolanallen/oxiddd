@@ -7,7 +7,8 @@
 - [ ] Support de l'accélération matérielle (AVX-512 / SHA-NI) via des intrinsics spécifiques.
 
 ### Forensic
-- [ ] Ajouter une option de vérification post-écriture (re-lecture complète et comparaison).  **Important**
+- [x] Ajouter une option de vérification post-écriture (re-lecture complète et comparaison).  **Important**
+- [x] Ajouter une option pour la création de deux copie une pour preuve et un epour analyse
 - [ ] Support du format compressé `.e01` (Expert Witness Format).
 - [ ] Génération de rapports au format PDF ou JSON détaillé.
 
