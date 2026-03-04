@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, dev ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, dev ]
 
 env:
   CARGO_TERM_COLOR: always
@@ -14,8 +14,13 @@ permissions:
 
 jobs:
   test:
-    name: Test and Lint
-    runs-on: ubuntu-latest
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -24,6 +29,9 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
       
       - name: Generate Lockfile
         run: cargo generate-lockfile

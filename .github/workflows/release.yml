@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v[0-9]*.[0-9]*.[0-9]*'
+      - 'v[0-9]*.[0-9]*.[0-9]*-beta.[0-9]*'
 
 permissions:
   contents: read
@@ -36,6 +37,11 @@ jobs:
         with:
           targets: ${{ matrix.target }}
       
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
       
@@ -62,6 +68,9 @@ jobs:
           files: |
             oxiddd-${{ matrix.target }}.tar.gz
             oxiddd-${{ matrix.target }}.tar.gz.sha256
+          # Marquer comme pre-release si le tag contient "-beta"
+          prerelease: ${{ contains(github.ref, '-beta') }}
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     permissions:
