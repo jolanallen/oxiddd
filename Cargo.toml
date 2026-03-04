@@ -2,6 +2,14 @@
 name = "oxiddd"
 version = "0.1.0"
 edition = "2024"
+authors = ["Your Name <your.email@example.com>"]
+description = "High-performance forensic disk imaging tool with verified NTP timestamping and binding hashes."
+license = "GPL-3.0"
+repository = "https://github.com/jolanallen/oxiddd"
+homepage = "https://github.com/jolanallen/oxiddd"
+readme = "README.md"
+keywords = ["forensic", "dfir", "disk-image", "dd", "security"]
+categories = ["command-line-utilities", "filesystem"]
 
 [dependencies]
 aligned-vec = "0.6.4"

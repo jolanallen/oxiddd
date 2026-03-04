@@ -28,6 +28,10 @@ struct Args {
     #[arg(long = "bs", value_name = "SIZE")]
     bs_flag: Option<String>,
 
+    /// Verify output after acquisition
+    #[arg(long = "verify", short = 'v')]
+    verify: bool,
+
     /// Positional arguments in key=value format (e.g., if=/dev/sdb)
     #[arg(value_parser = parse_key_val)]
     kv_args: Vec<(String, String)>,
@@ -47,6 +51,7 @@ fn main() {
     let mut output = args.output_flag.unwrap_or_default();
     let mut hash_str = args.hash_flag.unwrap_or_else(|| "sha256".to_string());
     let mut bs_str = args.bs_flag.unwrap_or_else(|| "4M".to_string());
+    let mut verify = args.verify;
 
     for (key, value) in args.kv_args {
         match key.as_str() {
@@ -54,6 +59,7 @@ fn main() {
             "of" => output = value,
             "hash" => hash_str = value.to_lowercase(),
             "bs" => bs_str = value,
+            "verify" => verify = value == "true" || value == "1",
             _ => eprintln!("Warning: unknown argument {}={}", key, value),
         }
     }
@@ -137,6 +143,26 @@ fn main() {
     println!("Standard Hash (Content Only): {}", std_hash);
     println!("Custom Forensic Hash:        {}", custom_hash);
 
+    if verify {
+        println!("\nStarting verification of output file...");
+        match io::verify_file(&out_file_path, algo, bs) {
+            Ok(v_hash) => {
+                if v_hash == std_hash {
+                    println!("✅ VERIFICATION SUCCESSFUL: Hashes match.");
+                } else {
+                    eprintln!("\n❌ CRITICAL ERROR: VERIFICATION FAILED!");
+                    eprintln!("Original Hash: {}", std_hash);
+                    eprintln!("Output Hash:   {}", v_hash);
+                    std::process::exit(2);
+                }
+            }
+            Err(e) => {
+                eprintln!("Error during verification: {}", e);
+                std::process::exit(1);
+            }
+        }
+    }
+
     let hash_content = format!(
         "--- STANDARD HASH (Bit-for-bit content) ---
 {}: {}
@@ -148,13 +174,20 @@ Hash:   {}
 --- METADATA ---
 Target FileName: {}
 NTP Timestamp:   {}
+--- VERIFICATION ---
+Status: {}
 ",
         hash_str.to_uppercase(),
         std_hash,
         hash_str.to_uppercase(),
         custom_hash,
         out_filename_only,
-        timestamp_str
+        timestamp_str,
+        if verify {
+            "Verified (Success)"
+        } else {
+            "Not performed"
+        }
     );
 
     if let Err(e) = fs::write(&hash_file_path, hash_content) {

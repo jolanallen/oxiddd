@@ -1,5 +1,6 @@
 use sha2::{Digest, Sha256, Sha512};
 
+#[derive(Clone, Copy)]
 pub enum HashAlgo {
     Sha256,
     Sha512,

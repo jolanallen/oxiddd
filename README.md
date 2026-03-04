@@ -1,5 +1,8 @@
 # oxiddd
 ![alt text](banner.png)
+
+
+
 [![CI](https://github.com/jolanallen/oxiddd/actions/workflows/ci.yml/badge.svg)](https://github.com/jolanallen/oxiddd/actions/workflows/ci.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
@@ -36,12 +39,12 @@ L'outil supporte la syntaxe standard des drapeaux CLI (recommandée pour l'autoc
 
 ### Syntaxe Standard
 ```bash
-sudo ./oxiddd --if /dev/sdb --of acquisition.dd --hash sha256
+sudo ./oxiddd --if /dev/sdb --of acquisition.dd --hash sha256 --verify
 ```
 
 ### Syntaxe DD
 ```bash
-sudo ./oxiddd if=/dev/sdb of=acquisition.dd hash=sha512 bs=8M
+sudo ./oxiddd if=/dev/sdb of=acquisition.dd hash=sha512 bs=8M verify=true
 ```
 
 ## Algorithme d'Intégrité
