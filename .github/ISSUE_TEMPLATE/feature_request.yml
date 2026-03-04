@@ -1,0 +1,23 @@
+name: 🚀 Demande de Fonctionnalité
+description: Proposer une nouvelle idée ou une amélioration pour oxiddd.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: feature-description
+    attributes:
+      label: Description de la fonctionnalité
+      description: Que souhaitez-vous qu'oxiddd puisse faire ?
+    validations:
+      required: true
+  - type: textarea
+    id: forensic-value
+    attributes:
+      label: Valeur ajoutée (Forensic/Opérationnel)
+      description: Pourquoi cette fonctionnalité est-elle utile pour une enquête ou une réponse à incident ?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considérées
+      description: Existe-t-il d'autres outils qui font cela ? Pourquoi oxiddd devrait l'intégrer ?
