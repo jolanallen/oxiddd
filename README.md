@@ -9,9 +9,10 @@
 
 *   **Performance optimisée** : Architecture de pipeline multi-threadée avec gestion de pool de tampons alignés (zero-copy).
 *   **Accès Direct aux E/S** : Utilisation du flag `O_DIRECT` sous Linux pour contourner le cache du noyau, garantissant un débit stable et une interaction directe avec le matériel.
+*   **Double Copie Parallèle** : Possibilité de créer simultanément une **Master Copy** (pour les scellés) et une **Working Copy** (pour l'analyse) en une seule lecture disque.
 *   **Intégrité Forensic Liée (Binding)** : Méthode de hachage exclusive liant le contenu binaire, le nom du fichier de destination et l'horodatage précis dans une signature unique.
 *   **Horodatage NTP Certifié** : Récupération de l'heure exacte via les serveurs NTP de Google pour prévenir toute altération de l'horloge système locale.
-*   **Double Hachage Simultané** : Génération automatique d'un hash standard (copie bit-à-bit pour compatibilité Autopsy/EnCase) et d'un hash forensic bindé.
+*   **Vérification Post-Écriture** : Option de relecture intégrale pour valider l'intégrité bit-à-bit des images générées.
 *   **Autonome et Statique** : Compilation en binaire statique sans dépendances dynamiques pour une utilisation sur des systèmes compromis.
 
 ## Installation
@@ -36,12 +37,16 @@ L'outil supporte la syntaxe standard des drapeaux CLI (recommandée pour l'autoc
 
 ### Syntaxe Standard
 ```bash
+# Acquisition simple avec vérification
 sudo ./oxiddd --if /dev/sdb --of acquisition.dd --hash sha256 --verify
+
+# Création d'une copie Maître et d'une copie de Travail
+sudo ./oxiddd --if /dev/sdb --of affaire_001 --working-copy --verify
 ```
 
 ### Syntaxe DD
 ```bash
-sudo ./oxiddd if=/dev/sdb of=acquisition.dd hash=sha512 bs=8M verify=true
+sudo ./oxiddd if=/dev/sdb of=acquisition.dd hash=sha512 bs=8M verify=true working-copy=true
 ```
 
 ## Algorithme d'Intégrité
