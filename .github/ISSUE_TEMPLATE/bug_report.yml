@@ -1,0 +1,51 @@
+name: 🛡️ Rapport de Bug (Forensic)
+description: Signaler une anomalie ou une incohérence de hachage.
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci de signaler ce bug. La fiabilité est critique pour `oxiddd`.
+  - type: input
+    id: version
+    attributes:
+      label: Version d'oxiddd
+      description: Exécutez `oxiddd --version`.
+      placeholder: "ex: v0.2.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Système d'exploitation
+      options:
+        - Linux (musl)
+        - Linux (glibc)
+        - macOS (Darwin)
+        - Windows
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Commande exécutée
+      description: La commande exacte ayant causé le problème.
+      placeholder: "sudo ./oxiddd if=/dev/sdb of=evidence.dd --verify"
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Contexte matériel
+      description: Type de disque (NVMe, SSD, HDD), type de connexion (SATA, USB-C), etc.
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportement attendu
+      description: Que devait-il se passer normalement ?
+  - type: textarea
+    id: actual
+    attributes:
+      label: Comportement observé
+      description: Que s'est-il passé réellement ? (ajoutez des logs si possible)
+      render: shell
