@@ -15,7 +15,6 @@ pub struct ForensicHasher {
     instance: HasherInstance,
     target_filename: String,
     ntp_timestamp: String,
-    algo: HashAlgo,
 }
 
 impl ForensicHasher {
@@ -32,7 +31,6 @@ impl ForensicHasher {
             instance,
             target_filename,
             ntp_timestamp,
-            algo,
         }
     }
 
@@ -68,13 +66,6 @@ impl ForensicHasher {
                 let custom_hash = hex::encode(custom.finalize());
                 (std_hash, custom_hash)
             }
-        }
-    }
-
-    pub fn extension(&self) -> &str {
-        match self.algo {
-            HashAlgo::Sha256 => "sha256",
-            HashAlgo::Sha512 => "sha512",
         }
     }
 }
