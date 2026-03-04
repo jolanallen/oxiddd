@@ -2,6 +2,7 @@ use crate::hash::ForensicHasher;
 use aligned_vec::{AVec, ConstAlign};
 use crossbeam_channel::{Receiver, Sender, bounded};
 use indicatif::{ProgressBar, ProgressStyle};
+use sha2::Digest;
 use std::fs::OpenOptions;
 use std::io::{Read, Result as IoResult, Seek, SeekFrom, Write};
 use std::os::unix::fs::OpenOptionsExt;
@@ -166,4 +167,75 @@ pub fn copy_and_hash<P1: AsRef<Path>, P2: AsRef<Path>>(
     let hashes = hasher_handle.join().expect("Hasher thread panicked");
 
     Ok(hashes)
+}
+
+pub fn verify_file<P: AsRef<Path>>(
+    path: P,
+    algo: crate::hash::HashAlgo,
+    block_size: usize,
+) -> IoResult<String> {
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    let o_direct = nix::libc::O_DIRECT;
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    let o_direct = 0;
+
+    let input = OpenOptions::new()
+        .read(true)
+        .custom_flags(o_direct)
+        .open(&path)
+        .or_else(|_| OpenOptions::new().read(true).open(&path))?;
+
+    #[cfg(target_os = "macos")]
+    unsafe {
+        nix::libc::fcntl(input.as_raw_fd(), nix::libc::F_NOCACHE, 1);
+    }
+
+    let mut input = input;
+    let total_size = input.metadata().map(|m| m.len()).unwrap_or(0);
+
+    let pb = if total_size > 0 {
+        ProgressBar::new(total_size)
+    } else {
+        ProgressBar::new_spinner()
+    };
+    pb.set_style(ProgressStyle::default_bar()
+        .template("{spinner:.green} [VÉRIFICATION] [{elapsed_precise}] [{wide_bar:.magenta/blue}] {bytes}/{total_bytes} ({bytes_per_sec})")
+        .unwrap()
+        .progress_chars("#>-"));
+
+    let mut buffer = AlignedBuffer::from_iter(4096, vec![0u8; block_size]);
+
+    let final_hash = match algo {
+        crate::hash::HashAlgo::Sha256 => {
+            let mut hasher = sha2::Sha256::new();
+            loop {
+                match input.read(&mut buffer) {
+                    Ok(0) => break,
+                    Ok(n) => {
+                        sha2::Digest::update(&mut hasher, &buffer[..n]);
+                        pb.inc(n as u64);
+                    }
+                    Err(e) => return Err(e),
+                }
+            }
+            hex::encode(hasher.finalize())
+        }
+        crate::hash::HashAlgo::Sha512 => {
+            let mut hasher = sha2::Sha512::new();
+            loop {
+                match input.read(&mut buffer) {
+                    Ok(0) => break,
+                    Ok(n) => {
+                        sha2::Digest::update(&mut hasher, &buffer[..n]);
+                        pb.inc(n as u64);
+                    }
+                    Err(e) => return Err(e),
+                }
+            }
+            hex::encode(hasher.finalize())
+        }
+    };
+
+    pb.finish_with_message("Vérification terminée");
+    Ok(final_hash)
 }
