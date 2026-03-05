@@ -1,25 +1,25 @@
 ## Description
 
-Include a summary of the change and which issue is fixed.
+Incluez un résumé de la modification et quel problème est résolu.
 
 Fixes # (issue)
 
-## Type of change
+## Type de changement
 
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] Documentation update
+- [ ] Correction de bug (changement non-cassant qui corrige un problème)
+- [ ] Nouvelle fonctionnalité (changement non-cassant qui ajoute une fonctionnalité)
+- [ ] Changement majeur / rupture (correction ou fonctionnalité qui entraînerait un dysfonctionnement des fonctionnalités existantes)
+- [ ] Mise à jour de la documentation
 
-## Forensic Checklist
+## Checklist Forensic
 
-- [ ] My code follows the style guidelines of this project.
-- [ ] I have performed a self-review of my own code.
-- [ ] I have commented my code, particularly in hard-to-understand areas (DMA, Alignment, Hash Binding).
-- [ ] I have added tests that prove my fix is effective or that my feature works.
-- [ ] **Crucial**: I have verified that this change does not impact the integrity of the data acquisition process.
-- [ ] **Crucial**: New dependencies (if any) have been audited.
+- [ ] Mon code suit les directives de style de ce projet.
+- [ ] J'ai effectué une auto-révision de mon propre code.
+- [ ] J'ai commenté mon code, en particulier dans les zones difficiles à comprendre (DMA, Alignement, Hash Binding).
+- [ ] J'ai ajouté des tests qui prouvent que ma correction est efficace ou que ma fonctionnalité fonctionne.
+- [ ] **Crucial** : J'ai vérifié que ce changement n'impacte pas l'intégrité du processus d'acquisition de données.
+- [ ] **Crucial** : Les nouvelles dépendances (le cas échéant) ont été auditées.
 
-## Screenshots (if applicable)
+## Captures d'écran (si applicable)
 
-If this is a CLI output change, please provide a screenshot or copy-paste.
+S'il s'agit d'un changement de sortie CLI, veuillez fournir une capture d'écran ou un copier-coller.
