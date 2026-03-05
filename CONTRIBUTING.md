@@ -1,38 +1,38 @@
-# Contributing to oxiddd
+# Contribuer à oxiddd
 
-First off, thank you for considering contributing to `oxiddd`. As a tool designed for digital forensics and incident response (DFIR), maintaining extreme reliability and data integrity is our top priority.
+Tout d'abord, merci de considérer une contribution à `oxiddd`. En tant qu'outil conçu pour l'investigation numérique et la réponse aux incidents (DFIR), le maintien d'une fiabilité extrême et de l'intégrité des données est notre priorité absolue.
 
-## Guiding Principles
+## Principes Directeurs
 
-- **Integrity First**: Every change must ensure that disk data is never modified and that hashes are calculated accurately.
-- **Safety over Speed**: While performance is a goal, the stability of the acquisition process is paramount.
-- **Zero Dependencies**: Minimize adding new dependencies. Every new crate must be audited for security and performance impact.
+- **L'intégrité avant tout** : Chaque modification doit garantir que les données du disque ne sont jamais modifiées et que les hachages sont calculés avec précision.
+- **La sécurité avant la vitesse** : Bien que la performance soit un objectif, la stabilité du processus d'acquisition est primordiale.
+- **Zéro dépendance inutile** : Minimisez l'ajout de nouvelles dépendances. Chaque nouvelle crate doit être auditée pour son impact sur la sécurité et les performances.
 
-## How to Contribute
+## Comment contribuer
 
-### Reporting Bugs
+### Signaler des bogues
 
-- Use the **Bug Report** template.
-- Include the exact command used.
-- Specify the hardware context (disk type, connection method) if relevant.
+- Utilisez le formulaire de **Rapport de Bug**.
+- Incluez la commande exacte utilisée.
+- Précisez le contexte matériel (type de disque, méthode de connexion) si nécessaire.
 
-### Proposing Features
+### Proposer des fonctionnalités
 
-- Use the **Feature Request** template.
-- Explain the forensic value of the feature.
+- Utilisez le formulaire de **Demande de Fonctionnalité**.
+- Expliquez la valeur ajoutée pour le forensic.
 
-### Development Workflow
+### Flux de développement
 
-1.  **Fork** the repository and create your branch from `main`.
-2.  **Install dependencies**: Ensure you have Rust and `musl-tools` installed.
-3.  **Run Tests**: `cargo test` must pass.
-4.  **Linting**: Run `cargo clippy` and `cargo fmt`. We do not accept code with clippy warnings.
-5.  **No `unwrap()`**: Avoid `unwrap()` or `expect()` on potentially failing operations. Handle errors gracefully with proper forensic logging.
+1.  **Forkez** le dépôt et créez votre branche à partir de `main` (ou `dev` pour les nouvelles fonctionnalités).
+2.  **Installez les dépendances** : Assurez-vous d'avoir Rust et `musl-tools` installés.
+3.  **Exécutez les tests** : `cargo test` doit passer.
+4.  **Linting** : Exécutez `cargo clippy` et `cargo fmt`. Nous n'acceptons pas de code avec des avertissements clippy.
+5.  **Pas de `unwrap()`** : Évitez `unwrap()` ou `expect()` sur des opérations potentiellement défaillantes. Gérez les erreurs avec élégance avec une journalisation forensic appropriée.
 
-## Code of Conduct
+## Code de conduite
 
-This project adheres to a professional and respectful environment. By participating, you are expected to uphold this standard.
+Ce projet adhère à un environnement professionnel et respectueux. En participant, vous êtes tenu de respecter cette norme (voir `CODE_OF_CONDUCT.md`).
 
-## Licensing
+## Licence
 
-By contributing to `oxiddd`, you agree that your contributions will be licensed under the project's **GPL-3.0 License**.
+En contribuant à `oxiddd`, vous acceptez que vos contributions soient sous licence **GPL-3.0**.
