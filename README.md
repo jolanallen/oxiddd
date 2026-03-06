@@ -17,7 +17,13 @@
 
 ## Installation
 
-### Prérequis
+### Via Cargo (Recommandé)
+Si vous avez Rust installé sur votre système :
+```bash
+cargo install oxiddd
+```
+
+### Prérequis pour la compilation manuelle
 *   Rust (dernière version stable)
 *   `musl-tools` (pour les builds statiques Linux)
 
