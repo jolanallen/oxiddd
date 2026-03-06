@@ -1,3 +1,4 @@
+mod discovery;
 mod hash;
 mod io;
 mod ntp;
@@ -5,6 +6,7 @@ mod ntp;
 use crate::hash::{ForensicHasher, HashAlgo};
 use chrono::{DateTime, Utc};
 use clap::Parser;
+use inquire::{Confirm, Select, Text};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -48,22 +50,124 @@ fn parse_key_val(s: &str) -> Result<(String, String), String> {
     Ok((s[..pos].to_string(), s[pos + 1..].to_string()))
 }
 
+fn print_banner() {
+    println!(
+        r#"
+  ____           _       _      _     _ 
+ / __ \         (_)     | |    | |   | |
+| |  | |__  __  _   __| |  __| | __| |
+| |  | |\ \/ / | | / _` | / _` |/ _` |
+| |__| | >  <  | || (_| || (_| | (_| |
+ \____/ /_/\_\ |_| \__,_| \__,_|\__,_|_|
+ 
+ Forensic Acquisition Tool v0.3.0
+ Author: Jolan Allen | Integrity is the priority.
+"#
+    );
+}
+
+fn run_interactive_mode() -> (String, String, String, String, bool, bool) {
+    print_banner();
+    println!("--- MODE INTERACTIF ---\n");
+
+    let devices = discovery::list_block_devices();
+    let input = if !devices.is_empty() {
+        let device = Select::new("Sélectionnez le disque source (if) :", devices)
+            .prompt()
+            .unwrap();
+        device.path // Note: on real systems, we'd need to resolve the raw device path
+    } else {
+        Text::new("Aucun disque détecté automatiquement. Entrez le chemin source :")
+            .with_placeholder("/dev/sdb")
+            .prompt()
+            .unwrap()
+    };
+
+    let output = Text::new("Entrez le chemin/nom de destination (of) :")
+        .with_placeholder("acquisition")
+        .prompt()
+        .unwrap();
+
+    let hash_algo = Select::new(
+        "Choisissez l'algorithme de hachage :",
+        vec!["sha256", "sha512"],
+    )
+    .prompt()
+    .unwrap();
+
+    let bs = Text::new("Taille de bloc (bs) :")
+        .with_default("4M")
+        .prompt()
+        .unwrap();
+
+    let verify = Confirm::new("Activer la vérification post-écriture ?")
+        .with_default(true)
+        .prompt()
+        .unwrap();
+
+    let working_copy = Confirm::new("Créer une double copie (Master + Working) ?")
+        .with_default(false)
+        .prompt()
+        .unwrap();
+
+    println!("\n--- RÉSUMÉ DE L'OPÉRATION ---");
+    println!("Source :      {}", input);
+    println!("Destination : {}", output);
+    println!("Algorithme :  {}", hash_algo.to_uppercase());
+    println!("Vérification: {}", if verify { "OUI" } else { "NON" });
+    println!("Double Copie: {}", if working_copy { "OUI" } else { "NON" });
+
+    if !Confirm::new("Confirmer le lancement de l'acquisition ?")
+        .with_default(false)
+        .prompt()
+        .unwrap()
+    {
+        println!("Opération annulée.");
+        std::process::exit(0);
+    }
+
+    (
+        input,
+        output,
+        hash_algo.to_string(),
+        bs,
+        verify,
+        working_copy,
+    )
+}
+
 fn main() {
     let args = Args::parse();
 
-    let mut input = args.input_flag.unwrap_or_default();
-    let mut output = args.output_flag.unwrap_or_default();
-    let mut hash_str = args.hash_flag.unwrap_or_else(|| "sha256".to_string());
-    let mut bs_str = args.bs_flag.unwrap_or_else(|| "4M".to_string());
-    let mut verify = args.verify;
-    let mut working_copy = args.working_copy;
+    let is_interactive = args.input_flag.is_none()
+        && args.output_flag.is_none()
+        && args.kv_args.is_empty()
+        && !args.verify
+        && !args.working_copy;
 
-    for (key, value) in args.kv_args {
+    // Détecter si on doit lancer le mode interactif
+    let (mut input, mut output, mut hash_str, mut bs_str, mut verify, mut working_copy) =
+        if is_interactive {
+            run_interactive_mode()
+        } else {
+            (
+                args.input_flag.clone().unwrap_or_default(),
+                args.output_flag.clone().unwrap_or_default(),
+                args.hash_flag
+                    .clone()
+                    .unwrap_or_else(|| "sha256".to_string()),
+                args.bs_flag.clone().unwrap_or_else(|| "4M".to_string()),
+                args.verify,
+                args.working_copy,
+            )
+        };
+
+    for (key, value) in &args.kv_args {
         match key.as_str() {
-            "if" => input = value,
-            "of" => output = value,
+            "if" => input = value.clone(),
+            "of" => output = value.clone(),
             "hash" => hash_str = value.to_lowercase(),
-            "bs" => bs_str = value,
+            "bs" => bs_str = value.clone(),
             "verify" => verify = value == "true" || value == "1",
             "working-copy" => working_copy = value == "true" || value == "1",
             _ => eprintln!("Warning: unknown argument {}={}", key, value),
@@ -95,6 +199,10 @@ fn main() {
             std::process::exit(1);
         }
     };
+
+    if !is_interactive {
+        print_banner();
+    }
 
     println!("oxiddd - Forensic Disk Copy Tool");
     println!("Fetching secure timestamp from Google NTP...");

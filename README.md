@@ -7,6 +7,7 @@
 
 ## Caractéristiques principales
 
+*   **Mode Interactif Intuitif** : Lancez l'outil sans arguments pour accéder à un assistant guidé avec détection automatique des disques.
 *   **Performance optimisée** : Architecture de pipeline multi-threadée avec gestion de pool de tampons alignés (zero-copy).
 *   **Accès Direct aux E/S** : Utilisation du flag `O_DIRECT` sous Linux pour contourner le cache du noyau, garantissant un débit stable et une interaction directe avec le matériel.
 *   **Double Copie Parallèle** : Possibilité de créer simultanément une **Master Copy** (pour les scellés) et une **Working Copy** (pour l'analyse) en une seule lecture disque.
@@ -39,7 +40,12 @@ cargo build --release
 
 ## Utilisation
 
-L'outil supporte la syntaxe standard des drapeaux CLI (recommandée pour l'autocomplétion) ainsi que la syntaxe historique `dd`.
+L'outil supporte un mode interactif (sans arguments) ainsi que la syntaxe CLI standard.
+
+### Mode Interactif (Recommandé pour éviter les erreurs)
+```bash
+sudo ./oxiddd
+```
 
 ### Syntaxe Standard
 ```bash
