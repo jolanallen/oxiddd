@@ -1,6 +1,6 @@
 [package]
 name = "oxiddd"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 authors = ["Jolan Allen <votre.email@exemple.com>"]
 description = "High-performance forensic disk imaging tool with verified NTP timestamping and binding hashes."
@@ -28,8 +28,10 @@ crossbeam-channel = "0.5.15"
 generic-array = "0.14.9"
 hex = "0.4.3"
 indicatif = "0.18.4"
+inquire = "0.7.5"
 nix = { version = "0.31.1", features = ["fs"] }
 sha2 = "0.10.9"
+sysinfo = "0.33.1"
 
 [profile.release]
 lto = true
